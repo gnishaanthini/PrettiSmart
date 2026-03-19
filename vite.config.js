@@ -4,6 +4,8 @@ import WindiCSS from 'vite-plugin-windicss'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(),WindiCSS()],
-  base: '/'  
+  plugins: [vue(), WindiCSS()],
+  build: {
+    cssCodeSplit: false // put all CSS into JS to avoid separate .css files
+  }
 })
