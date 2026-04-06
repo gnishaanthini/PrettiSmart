@@ -1758,22 +1758,56 @@ right.style.height = `calc(100vh - ${barHeight}px)`;
             });
         }
         async _fetchChatGPTResponse(txt) {
-        if (!this.apiKey || this.apiKey.includes('YOUR_OPENAI')) return "Please configure your OpenAI API Key first.";
-        const bitmapUrl = await this._getSVGBitmap();
-        let userQuestion = [{ type: "text", text: txt }];
-        const contextData = JSON.stringify(this.steps.map(s => ({ component: s.step_id, description: s.text, visual_targets: s.targets })));
-        const currentFocus = this.currentContext ? this.currentContext.title : "the general overview";
-        const currentDetails = this.currentContext ? JSON.stringify(this.currentContext.content) : "";
-        if (bitmapUrl) userQuestion.push({ type: "image_url", image_url: { url: bitmapUrl,detail:"low" } });
-        const messages = [
-            { role: "system", content: `You are an expert data visualization assistant.\n\nReference data:\n${contextData}\n\nUser is viewing: ${currentFocus}.\nDetails: ${currentDetails}\n\nAnswer strictly based on reference data and visualization image. Keep answers under 50 words.` },
-            { role: "user", content: userQuestion }
-        ];
-        const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` }, body: JSON.stringify({ model: "gpt-4o", messages }) });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.choices[0].message.content.trim();
-    }
+  const bitmapUrl = await this._getSVGBitmap();
+
+  const contextData = JSON.stringify(
+    this.steps.map(s => ({
+      component: s.step_id,
+      description: s.text,
+      visual_targets: s.targets
+    }))
+  );
+
+  const currentFocus = this.currentContext
+    ? this.currentContext.title
+    : 'the general overview';
+
+  const currentDetails = this.currentContext
+    ? JSON.stringify(this.currentContext.content)
+    : '';
+
+  // Build the user message (text + optional image)
+  let userContent = [{ type: 'text', text: txt }];
+  if (bitmapUrl) {
+    userContent.push({
+      type: 'image_url',
+      image_url: { url: bitmapUrl, detail: 'low' }
+    });
+  }
+
+  // ✅ Call YOUR backend — no API key in extension
+  const res = await fetch('https://vizpilot-backend.onrender.com/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert data visualization assistant.
+Reference data: ${contextData}
+User is viewing: ${currentFocus}.
+Details: ${currentDetails}
+Answer strictly based on reference data. Keep answers under 50 words.`
+        },
+        { role: 'user', content: userContent }
+      ]
+    })
+  });
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.reply;
+}
         async _fetchAIResponse(question) {
             const history = document.getElementById('vw-chat-history');
             const loading = document.createElement('div');
